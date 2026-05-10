@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "HMC5883L.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,8 +46,9 @@ I2C_HandleTypeDef hi2c2;
 
 SPI_HandleTypeDef hspi3;
 
-/* USER CODE BEGIN PV */
 
+/* USER CODE BEGIN PV */
+Vector mag_datos;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -99,15 +100,30 @@ int main(void)
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
 
+  // Ponemos el sensor en modo de lectura continua
+   HMC5883L_setMeasurementMode(HMC5883L_CONTINOUS);
+
+   // Configuramos la tasa de actualización interna a 30Hz
+   HMC5883L_setDataRate(HMC5883L_DATARATE_30HZ);
+
+   // Promediamos 8 muestras internas
+   HMC5883L_setSamples(HMC5883L_SAMPLES_8);
+
+   // Rango de ganancia
+   HMC5883L_setRange(HMC5883L_RANGE_1_3GA);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	mag_datos = HMC5883L_readNormalize();
   }
   /* USER CODE END 3 */
 }
