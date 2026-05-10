@@ -99,7 +99,6 @@ PA8.Mode=Clock-out-1
 PA8.Signal=RCC_MCO_1
 PA9.Locked=true
 PA9.Signal=GPIO_Output
-PB10.Locked=true
 PB10.Mode=I2C
 PB10.Signal=I2C2_SCL
 PB11.Locked=true

@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "bmp280.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -45,6 +46,12 @@ CAN_HandleTypeDef hcan1;
 I2C_HandleTypeDef hi2c2;
 
 SPI_HandleTypeDef hspi3;
+
+//Variables iniciales para el BMP//
+BMP280_HandleTypedef bmp280;
+float pressure, temperature, humidity;
+uint16_t size;
+uint8_t Data[256];
 
 /* USER CODE BEGIN PV */
 
@@ -98,6 +105,25 @@ int main(void)
   MX_I2C2_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
+  /* INICIALIZAMOS EL BMP*/
+  bmp280_init_default_params(&bmp280.params);
+  bmp280.addr = BMP280_I2C_ADDRESS_0;
+  bmp280.i2c = &hi2c2;// aca cambiamos &hi2c1 --> usamos el I2C2//
+
+  while (!bmp280_init(&bmp280, &bmp280.params)) {
+  		size = sprintf((char *)Data, "BMP280 initialization failed\n");
+  		/*HAL_UART_Transmit(&huart1, Data, size, 1000);*/ //no usamos UART//
+  		/*Deberia guardar el error en el archivo de escritura en la SD*/
+  		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);
+  		HAL_Delay(500);
+
+  	}
+  //Identificar si es BMP o BME//
+  	bool bme280p = bmp280.id == BME280_CHIP_ID;
+  	size = sprintf((char *)Data, "BMP280: found %s\n", bme280p ? "BME280" : "BMP280");
+  	//Guarde que es en SD//
+  	/*HAL_UART_Transmit(&huart1, Data, size, 1000);*/
+
 
   /* USER CODE END 2 */
 
@@ -108,6 +134,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	HAL_Delay(100);
+	while(!bmp280_read_float(&bmp280, &temperature, &pressure)){
+		size = sprintf((char *)Data,
+							"Temperature/pressure reading failed\n");
+		/*HAL_UART_Transmit(&huart1, Data, size, 1000);*/
+		HAL_Delay(2000);
+	}
+	size = sprintf((char *)Data,"Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
+	/*HAL_UART_Transmit(&huart1, Data, size, 1000);*//*Guardar en SD*/
+	HAL_Delay(2000);
+
+
   }
   /* USER CODE END 3 */
 }
