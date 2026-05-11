@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "bmp280.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -27,11 +26,26 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef enum{
+	ESTADO_LAUNCHPAD,
+	ESTADO_ASCENSO,
+	ESTADO_APOGEO,
+	ESTADO_LIBERACION,
+	ESTADO_ATERRIZAJE
+
+}EstadoVuelo;
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define N_CALIBRACION 20 // 20 lecturas en el suelo
+#define ALTURA_DESPEGUE 30.0f
+#define MUESTRAS_DESPEGUE 10
+#define CAIDA_APOGUEO 20.0f
+#define MUESTRAS_CAIDA 5
+#define ALTURA_MIN_APOGEO 300.0f
+
 
 /* USER CODE END PD */
 
@@ -47,13 +61,17 @@ I2C_HandleTypeDef hi2c2;
 
 SPI_HandleTypeDef hspi3;
 
-//Variables iniciales para el BMP//
-BMP280_HandleTypedef bmp280;
-float pressure, temperature, humidity;
-uint16_t size;
-uint8_t Data[256];
+TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
+EstadoVuelo estado=ESTADO_LAUNCHPAD;
+float altura_actual = 0.0f;
+float altura_maxima = 0.0f;
+float presion_suelo = 0.0f;
+
+uint8_t contador_despegue = 0;
+uint8_t contador_caida = 0;
+
 
 /* USER CODE END PV */
 
@@ -63,12 +81,32 @@ static void MX_GPIO_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_SPI3_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+float CalibrarPresionSuelo(void)
+{
+	float suma_presion = 0.0f;
+	uint8_t lecturas_validas = 0;
+	while(lecturas_validas < N_CALIBRACION)
+	{
+		if(bmp280_read_float(&bmp280, &temperature, &pressure))
+		{
+			suma_presion += pressure;
+			lecturas_validas ++;
+			HAL_Delay(100);
+		}
+	}
+	return suma_presion / N_CALIBRACION;
+
+}
+float CalcularAltura(float presion, float presion_base){
+	return 44330.0f * (1.0f - powf(presion / presion_base, 0.1903f));
+}
 
 /* USER CODE END 0 */
 
@@ -104,6 +142,8 @@ int main(void)
   MX_CAN1_Init();
   MX_I2C2_Init();
   MX_SPI3_Init();
+  MX_TIM2_Init();
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
   /* USER CODE BEGIN 2 */
   /* INICIALIZAMOS EL BMP*/
   bmp280_init_default_params(&bmp280.params);
@@ -122,7 +162,9 @@ int main(void)
   	bool bme280p = bmp280.id == BME280_CHIP_ID;
   	size = sprintf((char *)Data, "BMP280: found %s\n", bme280p ? "BME280" : "BMP280");
   	//Guarde que es en SD//
-  	/*HAL_UART_Transmit(&huart1, Data, size, 1000);*/
+  	// Calibración inicial de presión de suelo
+  	presion_suelo = CalibrarPresionSuelo();
+  	/*Guardar dato de la presion del suelo */
 
 
   /* USER CODE END 2 */
@@ -139,11 +181,90 @@ int main(void)
 		size = sprintf((char *)Data,
 							"Temperature/pressure reading failed\n");
 		/*HAL_UART_Transmit(&huart1, Data, size, 1000);*/
-		HAL_Delay(2000);
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_7);
+		HAL_Delay(500);
+
 	}
 	size = sprintf((char *)Data,"Pressure: %.2f Pa, Temperature: %.2f C", pressure, temperature);
 	/*HAL_UART_Transmit(&huart1, Data, size, 1000);*//*Guardar en SD*/
-	HAL_Delay(2000);
+	altura_actual = CalcularAltura(pressure, presion_suelo);
+	if (altura_actual > altura_maxima)
+	{
+	    altura_maxima = altura_actual;
+	}
+	switch(estado)
+	{
+		case ESTADO_LAUNCHPAD://Detectar que ya despego
+			if(altura_actual > ALTURA_DESPEGUE)
+			{
+				contador_despegue++;
+			}
+			else{
+				contador_despegue = 0;
+			}
+			if(contador_despegue >= MUESTRAS_DESPEGUE)
+			{
+				altura_maxima = altura_actual;
+				estado = ESTADO_ASCENSO;
+			}
+			break;
+
+		case ESTADO_ASCENSO: // Actualizar la altura maxima//
+
+			if(altura_actual > altura_maxima)
+			{
+				altura_maxima = altura_actual;
+				contador_caida = 0;
+			}
+			// Confirmar que ya empezó a caer
+			if ((altura_maxima - altura_actual) >= CAIDA_APOGEO)
+			{
+				contador_caida++;
+			}
+			else
+			{
+				contador_caida = 0;
+			}
+
+	        // Confirmar apogeo
+	        if (contador_caida >= MUESTRAS_CAIDA &&
+	            altura_maxima > ALTURA_MIN_APOGEO)
+	        {
+	            estado = ESTADO_APOGEO;
+	        }
+
+	        break;
+
+		case ESTADO_APOGEO:
+			// Activar Canal 1//
+			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_SET);
+			HAL_Delay(1000);
+			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_RESET);
+
+			Buzzer_Beep(300);
+			estado = ESTADO_LIBERACION;
+
+			break;
+
+		case ESTADO_LIBERACION:
+			if (altura_actual < 10.0f)
+			    {
+			        estado = ESTADO_ATERRIZAJE;
+			    }
+
+			    break;
+
+		case ESTADO_ATERRIZAJE:
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
+			break;
+
+		default:
+			estado = ESTADO_LAUNCHPAD;
+			break;
+
+
+	}
+
 
 
   }
@@ -309,6 +430,65 @@ static void MX_SPI3_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 4294967295;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -341,8 +521,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA1 PA3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_3;
+  /*Configure GPIO pin : PA1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -393,6 +573,23 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+// Funciones del buzzer//
+void Buzzer_On(void)
+{
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 500);
+}
+
+void Buzzer_Off(void)
+{
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 0);
+}
+
+void Buzzer_Beep(uint16_t tiempo)
+{
+    Buzzer_On();
+    HAL_Delay(tiempo);
+    Buzzer_Off();
+}
 
 /* USER CODE END 4 */
 
