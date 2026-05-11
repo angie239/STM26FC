@@ -9,7 +9,7 @@
 #ifndef __BMP280_H__
 #define __BMP280_H__
 
-#include "stm32f0xx_hal.h"
+#include "stm32f4xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -173,6 +173,8 @@ bool bmp280_read_fixed(BMP280_HandleTypedef *dev, int32_t *temperature,
  */
 bool bmp280_read_float(BMP280_HandleTypedef *dev, float *temperature,
                        float *pressure, float *humidity);
+
+float bmp280_calculate_altitude(float pressure_pa, float sea_level_hpa);
 
 
 #endif  // __BMP280_H__

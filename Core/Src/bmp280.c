@@ -27,7 +27,7 @@
  */
 
 #include "bmp280.h"
-
+#include "math.h"
 /**
  * BMP280 registers
  */
@@ -346,4 +346,18 @@ bool bmp280_read_float(BMP280_HandleTypedef *dev, float *temperature, float *pre
 	}
 
 	return false;
+}
+
+float bmp280_calculate_altitude(float pressure_pa, float sea_level_hpa) {
+    float altitude;
+
+    float pressure_hpa = pressure_pa / 100.0f;
+
+    if (sea_level_hpa == 0.0f) {
+        return 0.0f;
+    }
+
+    altitude = 44330.0f * (1.0f - pow((pressure_hpa / sea_level_hpa), 0.1903f));
+
+    return altitude;
 }

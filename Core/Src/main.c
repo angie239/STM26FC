@@ -20,8 +20,16 @@
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
 
+/* USER CODE BEGIN Includes */
+#include "bmp280.h"
+#define FACTOR_SEGURIDAD 3
+#define ERROR_SENSOR 1
+#define ESTATICO 1
+#define DESPEGUE 2
+#define APOGEO 3
+#define ATERRIZAJE 4
+#define FACTOR_SEGURIDAD_ATERRIZAJE 0.20
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,7 +55,15 @@ I2C_HandleTypeDef hi2c2;
 SPI_HandleTypeDef hspi3;
 
 /* USER CODE BEGIN PV */
-
+BMP280_HandleTypedef bmp280;
+float temperatura = 0.0f;
+float presion = 0.0f;
+float humedad = 0.0f;
+float altitud = 0.0f;
+float altitud_inicial=0.0f;
+int fase=1;
+float altitud_maxima=0.0f;
+float altitud_anterior=0.0f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,7 +114,23 @@ int main(void)
   MX_I2C2_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
+  extern I2C_HandleTypeDef hi2c2;
+  bmp280.i2c = &hi2c2;
 
+  bmp280.addr = BMP280_I2C_ADDRESS_0;
+
+  bmp280_init_default_params(&bmp280.params);
+
+  if (!bmp280_init(&bmp280, &bmp280.params)) {
+      while(1) {
+          HAL_Delay(100);
+      }
+  }
+
+  HAL_Delay(500);
+
+  bmp280_read_float(&bmp280, &temperatura, &presion, &humedad);
+  altitud_inicial= bmp280_calculate_altitude(presion, 1013.25f);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -108,6 +140,31 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  bmp280_read_float(&bmp280, &temperatura, &presion, &humedad);
+	  altitud= bmp280_calculate_altitude(presion, 1013.25f)-altitud_inicial;
+	  if(altitud_maxima<altitud)
+		  altitud_maxima=altitud;
+
+	  switch(fase){
+	  	  case ESTATICO:
+		  	if(altitud>FACTOR_SEGURIDAD){
+		  		fase=DESPEGUE;
+		  	}
+		  	break;
+	  	  case DESPEGUE:
+		  	 if(altitud<altitud_maxima+ERROR_SENSOR){
+		  		 fase=APOGEO;
+		  		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
+		  	 }
+		  	 break;
+	  	  case APOGEO:
+	  		  if(abs(altitud-altitud_anterior)<=FACTOR_SEGURIDAD_ATERRIZAJE){
+		  	  fase=ATERRIZAJE;
+	  		  }
+		  	 break;
+
+	  }
+	  altitud_anterior=altitud;
   }
   /* USER CODE END 3 */
 }
