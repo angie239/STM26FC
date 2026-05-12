@@ -18,6 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "bmp280.h"
+#include <math.h>
+#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -40,11 +43,11 @@ typedef enum{
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define N_CALIBRACION 20 // 20 lecturas en el suelo
-#define ALTURA_DESPEGUE 30.0f
-#define MUESTRAS_DESPEGUE 10
-#define CAIDA_APOGUEO 20.0f
-#define MUESTRAS_CAIDA 5
-#define ALTURA_MIN_APOGEO 300.0f
+#define ALTURA_DESPEGUE 2.0f //30.0f
+#define MUESTRAS_DESPEGUE 3//10
+#define CAIDA_APOGUEO 1.0f//20.0f
+#define MUESTRAS_CAIDA 2//5
+#define ALTURA_MIN_APOGEO 4.0f//300.0f
 
 
 /* USER CODE END PD */
@@ -64,6 +67,11 @@ SPI_HandleTypeDef hspi3;
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
+BMP280_HandleTypedef bmp280;
+float temperature;
+float pressure;
+uint8_t Data[128];
+uint16_t size;
 EstadoVuelo estado=ESTADO_LAUNCHPAD;
 float altura_actual = 0.0f;
 float altura_maxima = 0.0f;
@@ -83,6 +91,9 @@ static void MX_I2C2_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
+void Buzzer_On(void);
+void Buzzer_Off(void);
+void Buzzer_Beep(uint16_t tiempo);
 
 /* USER CODE END PFP */
 
@@ -217,7 +228,7 @@ int main(void)
 				contador_caida = 0;
 			}
 			// Confirmar que ya empezó a caer
-			if ((altura_maxima - altura_actual) >= CAIDA_APOGEO)
+			if ((altura_maxima - altura_actual) >= CAIDA_APOGUEO)
 			{
 				contador_caida++;
 			}
@@ -226,7 +237,7 @@ int main(void)
 				contador_caida = 0;
 			}
 
-	        // Confirmar apogeo
+	        /* Confirmar apogeo*/
 	        if (contador_caida >= MUESTRAS_CAIDA &&
 	            altura_maxima > ALTURA_MIN_APOGEO)
 	        {

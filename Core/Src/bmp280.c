@@ -331,17 +331,16 @@ bool bmp280_read_fixed(BMP280_HandleTypedef *dev, int32_t *temperature, uint32_t
 	return true;
 }
 
-bool bmp280_read_float(BMP280_HandleTypedef *dev, float *temperature, float *pressure,
-		float *humidity) {
+bool bmp280_read_float(BMP280_HandleTypedef *dev, float *temperature, float *pressure){
 	int32_t fixed_temperature;
 	uint32_t fixed_pressure;
-	uint32_t fixed_humidity;
+	/*uint32_t fixed_humidity;*/
 	if (bmp280_read_fixed(dev, &fixed_temperature, &fixed_pressure,
-			humidity ? &fixed_humidity : NULL)) {
+			/*humidity ? &fixed_humidity :*/ NULL)) {
 		*temperature = (float) fixed_temperature / 100;
 		*pressure = (float) fixed_pressure / 256;
-		if (humidity)
-			*humidity = (float) fixed_humidity / 1024;
+		/*if (humidity)
+			*humidity = (float) fixed_humidity / 1024;*/
 		return true;
 	}
 
