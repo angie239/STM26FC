@@ -45,7 +45,7 @@ typedef enum{
 #define N_CALIBRACION 20 // 20 lecturas en el suelo
 #define ALTURA_DESPEGUE 2.0f //30.0f
 #define MUESTRAS_DESPEGUE 3//10
-#define CAIDA_APOGUEO 1.0f//20.0f
+#define CAIDA_APOGEO 1.0f//20.0f
 #define MUESTRAS_CAIDA 2//5
 #define ALTURA_MIN_APOGEO 4.0f//300.0f
 
@@ -68,8 +68,8 @@ TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
 BMP280_HandleTypedef bmp280;
-float temperature;
-float pressure;
+float temperature = 0.0f;
+float pressure = 0.0f;
 uint8_t Data[128];
 uint16_t size;
 EstadoVuelo estado=ESTADO_LAUNCHPAD;
@@ -162,6 +162,7 @@ int main(void)
   bmp280.i2c = &hi2c2;// aca cambiamos &hi2c1 --> usamos el I2C2//
 
   while (!bmp280_init(&bmp280, &bmp280.params)) {
+
   		size = sprintf((char *)Data, "BMP280 initialization failed\n");
   		/*HAL_UART_Transmit(&huart1, Data, size, 1000);*/ //no usamos UART//
   		/*Deberia guardar el error en el archivo de escritura en la SD*/
@@ -174,6 +175,7 @@ int main(void)
   	size = sprintf((char *)Data, "BMP280: found %s\n", bme280p ? "BME280" : "BMP280");
   	//Guarde que es en SD//
   	// Calibración inicial de presión de suelo
+    HAL_Delay(100);
   	presion_suelo = CalibrarPresionSuelo();
   	/*Guardar dato de la presion del suelo */
 
@@ -228,7 +230,7 @@ int main(void)
 				contador_caida = 0;
 			}
 			// Confirmar que ya empezó a caer
-			if ((altura_maxima - altura_actual) >= CAIDA_APOGUEO)
+			if ((altura_maxima - altura_actual) >= CAIDA_APOGEO)
 			{
 				contador_caida++;
 			}
