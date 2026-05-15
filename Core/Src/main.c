@@ -22,10 +22,15 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bmp280.h"
+#include "mpu6050.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_gpio.h"
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include <locale.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -301,8 +306,10 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+//
+MPU6050_t mpu;  /*Se crea el tipo de dato MPU*/
 
-
+// FUNCION PROMEDIO DE ALTURA EN EL SUELO//
 float CalibrarPresionSuelo(void)
 {
 	float suma_presion = 0.0f;
@@ -361,6 +368,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
   noNote();
+
   /* INICIALIZAMOS EL BMP*/
   bmp280_init_default_params(&bmp280.params);
   bmp280.addr = BMP280_I2C_ADDRESS_0;
@@ -386,7 +394,15 @@ int main(void)
   	presion_suelo = CalibrarPresionSuelo();
   	/*Guardar dato de la presion del suelo */
 
+  	//INICIALIZAMOS EL MPU6050///
 
+  	if(MPU6050_Init(&hi2c2) !=HAL_OK){
+
+  		while(1){
+  			HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_7);
+  			HAL_Delay(300);
+  		}
+  	}
   /* USER CODE END 2 */
 
   /* Infinite loop */
