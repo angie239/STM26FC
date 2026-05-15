@@ -18,13 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "bmp280.h"
-#include <math.h>
-#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bmp280.h"
+#include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_gpio.h"
+#include <math.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,11 +46,99 @@ typedef enum{
 #define N_CALIBRACION 20 // 20 lecturas en el suelo
 #define ALTURA_DESPEGUE 2.0f //30.0f
 #define MUESTRAS_DESPEGUE 3//10
-#define CAIDA_APOGEO 1.0f//20.0f
-#define MUESTRAS_CAIDA 2//5
+#define CAIDA_APOGEO 1.0f//2.0f /*Aeros preguntar altura recomendada*/
+#define MUESTRAS_CAIDA 2//5 *Checar en base a la frecuencia que se vq a utilizar*/
 #define ALTURA_MIN_APOGEO 4.0f//300.0f
 
-
+#define NOTE_B0  31
+#define NOTE_C1  33
+#define NOTE_CS1 35
+#define NOTE_D1  37
+#define NOTE_DS1 39
+#define NOTE_E1  41
+#define NOTE_F1  44
+#define NOTE_FS1 46
+#define NOTE_G1  49
+#define NOTE_GS1 52
+#define NOTE_A1  55
+#define NOTE_AS1 58
+#define NOTE_B1  62
+#define NOTE_C2  65
+#define NOTE_CS2 69
+#define NOTE_D2  73
+#define NOTE_DS2 78
+#define NOTE_E2  82
+#define NOTE_F2  87
+#define NOTE_FS2 93
+#define NOTE_G2  98
+#define NOTE_GS2 104
+#define NOTE_A2  110
+#define NOTE_AS2 117
+#define NOTE_B2  123
+#define NOTE_C3  131
+#define NOTE_CS3 139
+#define NOTE_D3  147
+#define NOTE_DS3 156
+#define NOTE_E3  165
+#define NOTE_F3  175
+#define NOTE_FS3 185
+#define NOTE_G3  196
+#define NOTE_GS3 208
+#define NOTE_A3  220
+#define NOTE_AS3 233
+#define NOTE_B3  247
+#define NOTE_C4  262
+#define NOTE_CS4 277
+#define NOTE_D4  294
+#define NOTE_DS4 311
+#define NOTE_E4  330
+#define NOTE_F4  349
+#define NOTE_FS4 370
+#define NOTE_G4  392
+#define NOTE_GS4 415
+#define NOTE_A4  440
+#define NOTE_AS4 466
+#define NOTE_B4  494
+#define NOTE_C5  523
+#define NOTE_CS5 554
+#define NOTE_D5  587
+#define NOTE_DS5 622
+#define NOTE_E5  659
+#define NOTE_F5  698
+#define NOTE_FS5 740
+#define NOTE_G5  784
+#define NOTE_GS5 831
+#define NOTE_A5  880
+#define NOTE_AS5 932
+#define NOTE_B5  988
+#define NOTE_C6  1047
+#define NOTE_CS6 1109
+#define NOTE_D6  1175
+#define NOTE_DS6 1245
+#define NOTE_E6  1319
+#define NOTE_F6  1397
+#define NOTE_FS6 1480
+#define NOTE_G6  1568
+#define NOTE_GS6 1661
+#define NOTE_A6  1760
+#define NOTE_AS6 1865
+#define NOTE_B6  1976
+#define NOTE_C7  2093
+#define NOTE_CS7 2217
+#define NOTE_D7  2349
+#define NOTE_DS7 2489
+#define NOTE_E7  2637
+#define NOTE_F7  2794
+#define NOTE_FS7 2960
+#define NOTE_G7  3136
+#define NOTE_GS7 3322
+#define NOTE_A7  3520
+#define NOTE_AS7 3729
+#define NOTE_B7  3951
+#define NOTE_C8  4186
+#define NOTE_CS8 4435
+#define NOTE_D8  4699
+#define NOTE_DS8 4978
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -67,6 +156,121 @@ SPI_HandleTypeDef hspi3;
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
+
+
+//CODIGO PARA EL BUZZER//
+typedef struct {
+  uint16_t pitch;
+  uint8_t duration;
+} note_t;
+
+note_t buzzer_mario_theme[] = {
+  {NOTE_E7, 12},
+  {NOTE_E7, 12},
+  {0, 12},
+  {NOTE_E7, 12},
+  {0, 12},
+  {NOTE_C7, 12},
+  {NOTE_E7, 12},
+  {0, 12},
+  {NOTE_G7, 12},
+  {0, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_G6, 12},
+  {0, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_C7, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_G6, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_E6, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_A6, 12},
+  {0, 12},
+  {NOTE_B6, 12},
+  {0, 12},
+  {NOTE_AS6, 12},
+  {NOTE_A6, 12},
+  {0, 12},
+  {NOTE_G6, 9},
+  {NOTE_E7, 9},
+  {NOTE_G7, 9},
+  {NOTE_A7, 12},
+  {0, 12},
+  {NOTE_F7, 12},
+  {NOTE_G7, 12},
+  {0, 12},
+  {NOTE_E7, 12},
+  {0, 12},
+  {NOTE_C7, 12},
+  {NOTE_D7, 12},
+  {NOTE_B6, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_C7, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_G6, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_E6, 12},
+  {0, 12},
+  {0, 12},
+  {NOTE_A6, 12},
+  {0, 12},
+  {NOTE_B6, 12},
+  {0, 12},
+  {NOTE_AS6, 12},
+  {NOTE_A6, 12},
+  {0, 12},
+  {NOTE_G6, 9},
+  {NOTE_E7, 9},
+  {NOTE_G7, 9},
+  {NOTE_A7, 12},
+  {0, 12},
+  {NOTE_F7, 12},
+  {NOTE_G7, 12},
+  {0, 12},
+  {NOTE_E7, 12},
+  {0, 12},
+  {NOTE_C7, 12},
+  {NOTE_D7, 12},
+  {NOTE_B6, 12},
+  {0, 12},
+  {0, 12}
+
+};
+
+#define TIM_FREQ 168000000
+
+int presForFrequency (int frequency)
+{
+	if (frequency == 0) return 0;
+	return ((TIM_FREQ/(1000*frequency))-1);  // 1 is added in the register
+}
+
+void noNote (void)
+{
+	__HAL_TIM_SET_PRESCALER(&htim2, 0);
+}
+
+void playNote (note_t note)
+{
+  int pres = presForFrequency(note.pitch);  // calculate prescaler
+  int dur = note.duration*15; // calculate duration
+
+  __HAL_TIM_SET_PRESCALER(&htim2, pres);
+  HAL_Delay(dur);   // how long the tone will play
+  noNote();  // pause
+}
+
+//FIN DEL CODIGO DEL BUZZER//
+
 BMP280_HandleTypedef bmp280;
 float temperature = 0.0f;
 float pressure = 0.0f;
@@ -91,14 +295,14 @@ static void MX_I2C2_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-void Buzzer_On(void);
-void Buzzer_Off(void);
-void Buzzer_Beep(uint16_t tiempo);
+
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+
 float CalibrarPresionSuelo(void)
 {
 	float suma_presion = 0.0f;
@@ -154,12 +358,14 @@ int main(void)
   MX_I2C2_Init();
   MX_SPI3_Init();
   MX_TIM2_Init();
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
   /* USER CODE BEGIN 2 */
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
+  noNote();
   /* INICIALIZAMOS EL BMP*/
   bmp280_init_default_params(&bmp280.params);
   bmp280.addr = BMP280_I2C_ADDRESS_0;
   bmp280.i2c = &hi2c2;// aca cambiamos &hi2c1 --> usamos el I2C2//
+
 
   while (!bmp280_init(&bmp280, &bmp280.params)) {
 
@@ -170,6 +376,7 @@ int main(void)
   		HAL_Delay(500);
 
   	}
+
   //Identificar si es BMP o BME//
   	bool bme280p = bmp280.id == BME280_CHIP_ID;
   	size = sprintf((char *)Data, "BMP280: found %s\n", bme280p ? "BME280" : "BMP280");
@@ -251,10 +458,18 @@ int main(void)
 		case ESTADO_APOGEO:
 			// Activar Canal 1//
 			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_SET);
-			HAL_Delay(1000);
-			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_RESET);
+			/*HAL_Delay(1000);*/
+			/*HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_RESET);*/
 
-			Buzzer_Beep(300);
+			/*Buzzer_Beep(300);*/
+			/*note_t nota = {1300,20};
+			playNote(nota);*/
+		  const size_t songSize = sizeof(buzzer_mario_theme) / sizeof(buzzer_mario_theme[0]);
+		  for (size_t i = 0; i < songSize; i++) {
+				playNote(buzzer_mario_theme[i]);
+			  }
+			  HAL_Delay(500);
+
 			estado = ESTADO_LIBERACION;
 
 			break;
@@ -462,9 +677,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
+  htim2.Init.Prescaler = 167;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 249;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -487,7 +702,7 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 125;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
@@ -586,23 +801,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-// Funciones del buzzer//
-void Buzzer_On(void)
-{
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 500);
-}
 
-void Buzzer_Off(void)
-{
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 0);
-}
-
-void Buzzer_Beep(uint16_t tiempo)
-{
-    Buzzer_On();
-    HAL_Delay(tiempo);
-    Buzzer_Off();
-}
 
 /* USER CODE END 4 */
 
