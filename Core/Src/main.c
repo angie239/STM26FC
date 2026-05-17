@@ -40,6 +40,8 @@ typedef enum{
 	ESTADO_ASCENSO,
 	ESTADO_APOGEO,
 	ESTADO_LIBERACION,
+  ESTADO_MAIN_PARACHUTE, // Actuación de los pirocortadores 
+	ESTADO_DESCENSO_FINAL, // Descenso con main parachute
 	ESTADO_ATERRIZAJE
 
 }EstadoVuelo;
@@ -430,6 +432,7 @@ int main(void)
 	}
 	switch(estado)
 	{
+
 		case ESTADO_LAUNCHPAD://Detectar que ya despego
 			if(altura_actual > ALTURA_DESPEGUE)
 			{
@@ -444,6 +447,8 @@ int main(void)
 				estado = ESTADO_ASCENSO;
 			}
 			break;
+
+
 
 		case ESTADO_ASCENSO: // Actualizar la altura maxima//
 
@@ -469,19 +474,19 @@ int main(void)
 	            estado = ESTADO_APOGEO;
 	        }
 
-	        break;
+	    break;
 
 		case ESTADO_APOGEO:
-			// Activar Canal 1//
-			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_SET);
+      
       ///Mandar señal a plaquita de neumática/
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_SET);
-			/*HAL_Delay(1000);*/
-			/*HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_RESET);*/
 
-			/*Buzzer_Beep(300);*/
-			/*note_t nota = {1300,20};
-			playNote(nota);*/
+      HAL_Delay(1000); //1 seg encendido
+
+      //Apagando
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_RESET);
+  
+      //musiquita
 		  const size_t songSize = sizeof(buzzer_mario_theme) / sizeof(buzzer_mario_theme[0]);
 		  for (size_t i = 0; i < songSize; i++) {
 				playNote(buzzer_mario_theme[i]);
@@ -489,19 +494,48 @@ int main(void)
 			  HAL_Delay(500);
 
 			estado = ESTADO_LIBERACION;
-
 			break;
 
+    
 		case ESTADO_LIBERACION:
-			if (altura_actual < 10.0f)
+			if (altura_actual < 1000.0f) //serán 1000m por debajo del apogeo
+			    {
+			        estado = ESTADO_MAIN_PARACHUTE;
+			    }
+			break;
+    
+
+    case ESTADO_MAIN_PARACHUTE:
+			// Activar canales pirotécnicos (PA9 y PA10) (pirocortadores)
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9 | GPIO_PIN_10, GPIO_PIN_SET);
+
+			HAL_Delay(1000); //1 seg encendido
+
+			// Apagando
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9 | GPIO_PIN_10, GPIO_PIN_RESET);
+
+			// Pasamos al estado de descenso seguro con el paracaídas Main completamente desplegado
+			estado = ESTADO_DESCENSO_FINAL;
+			break;
+
+     
+      
+    case ESTADO_DESCENSO_FINAL:
+			if (altura_actual < 10.0f) //10[m] de altura máxima
 			    {
 			        estado = ESTADO_ATERRIZAJE;
 			    }
+			break;
 
-			    break;
+
 
 		case ESTADO_ATERRIZAJE:
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
+			//Sonido de recuperación?
+      note_t nota = {1300, 20};
+			playNote(nota);
+
+      HAL_Delay(500);
+
 			break;
 
 		default:
@@ -509,11 +543,11 @@ int main(void)
 			break;
 
 
-	}
+	}//fin switch(estado)
 
 
 
-  }
+  }//fin while(1)
   /* USER CODE END 3 */
 }
 
@@ -790,7 +824,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC4 PC5 pPC3 */
+  /*Configure GPIO pins : PC4 PC5 PC3 */
   GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5 |GPIO_PIN_3;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
