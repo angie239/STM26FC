@@ -474,6 +474,8 @@ int main(void)
 		case ESTADO_APOGEO:
 			// Activar Canal 1//
 			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_SET);
+      ///Mandar señal a plaquita de neumática/
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_SET);
 			/*HAL_Delay(1000);*/
 			/*HAL_GPIO_WritePin(GPIOA,GPIO_PIN_9|GPIO_PIN_10,GPIO_PIN_RESET);*/
 
