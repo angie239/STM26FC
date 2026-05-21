@@ -371,6 +371,40 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
   noNote();
 
+
+  ///////////////////////////////////////////////
+
+ 	  //Detección de MPU
+ 	      while (1)
+ 	    {
+ 	    for(int i=1; i < 128; i++)
+ 	    {
+ 	        int ret = HAL_I2C_IsDeviceReady(&hi2c2, (uint16_t)(i<<1), 1, 200);
+ 	        if (ret != HAL_OK) /* No ACK Received At That Address */
+ 	        {
+ 	            HAL_Delay(100);
+ 	        }
+ 	        else
+ 	        {
+ 	            HAL_Delay(10000);
+ 	        }
+ 	    }
+ 	    for(int i=1; i < 128; i++)
+ 	    {
+ 	        int ret = HAL_I2C_IsDeviceReady(&hi2c2, (uint16_t)(i), 1, 200);
+ 	        if (ret != HAL_OK) /* No ACK Received At That Address */
+ 	        {
+ 	            HAL_Delay(100);
+ 	        }
+ 	        else
+ 	        {
+ 	            HAL_Delay(10000);
+ 	        }
+ 	    }
+ 	    }
+ 	      /////////////////////////////////////
+
+
   /* INICIALIZAMOS EL BMP*/
   bmp280_init_default_params(&bmp280.params);
   bmp280.addr = BMP280_I2C_ADDRESS_0;
@@ -409,11 +443,14 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+
 	HAL_Delay(100);
 	while(!bmp280_read_float(&bmp280, &temperature, &pressure)){
 		size = sprintf((char *)Data,

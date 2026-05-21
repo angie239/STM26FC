@@ -1,6 +1,7 @@
 "./Core/Src/HMC5883L.o"
 "./Core/Src/bmp280.o"
 "./Core/Src/main.o"
+"./Core/Src/mpu6050.o"
 "./Core/Src/stm32f4xx_hal_msp.o"
 "./Core/Src/stm32f4xx_it.o"
 "./Core/Src/syscalls.o"
